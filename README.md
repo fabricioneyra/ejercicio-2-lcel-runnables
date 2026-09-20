@@ -125,6 +125,30 @@ mencionados explícitamente en el texto (ej. `circuit breaker`) — la restricci
 es no usar palabras genéricas que no aporten información, no limitarlo
 únicamente a nombres de productos.
 
+**Observación real: reintentos agotados.** En una corrida contra la API real
+(no simulada) con el mismo texto ambiguo, el modelo devolvió `"sistema"` en
+los 3 intentos consecutivos (`stop_after_attempt=3`). El `@field_validator`
+rechazó cada uno de los 3, y el pipeline terminó con un error controlado en
+vez de un resultado inválido:
+
+```
+El pipeline no pudo procesar este texto tras los reintentos: 1 validation
+error for EntidadesTecnicas
+tecnologias
+  Value error, 'sistema' es un término genérico, no una tecnología
+  específica...
+```
+
+Esto no es una falla del pipeline — es la resiliencia funcionando de punta a
+punta: ante un texto que genuinamente no da información específica, el
+sistema prefiere fallar de forma clara y explicable antes que devolver un
+dato que parece válido pero no lo es. Un texto tan ambiguo puede terminar en
+dos desenlaces igual de correctos: el modelo encuentra una inferencia
+razonable en algún intento (ej. `"backend"`) o el modelo insiste con lo
+genérico y el pipeline lo rechaza los 3 intentos y falla explícitamente. Ambos
+casos están cubiertos por diseño; lo único que no está permitido es un
+resultado "válido" con contenido vacío de significado.
+
 ## Nota sobre `temperature` por proveedor
 
 Igual que en el Módulo 1: los modelos recientes de Anthropic (4.7+, incluido
